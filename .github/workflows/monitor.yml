@@ -2,58 +2,49 @@ name: Cancun Price Monitor
 
 on:
   schedule:
-    # Runs every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
-    # (= 8pm, 2am, 8am, 2pm Toronto time in EST)
-    - cron: "0 0,6,12,18 * * *"
-
-  # Also lets you trigger a manual run from the GitHub Actions tab
-  workflow_dispatch:
+    - cron: "0 0,6,12,18 * * *"   # every 6 hrs: 8pm/2am/8am/2pm Toronto EDT
+  workflow_dispatch:               # manual run from Actions tab
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write              # needed to commit status.json back to repo
 
     steps:
-      # ── 1. Check out your repo ─────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Set up Python ───────────────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      # ── 3. Install Python dependencies ────────────────────────────────────
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── 4. Install Playwright + Chromium ──────────────────────────────────
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium
 
-      # ── 5. Write config from GitHub Secrets ───────────────────────────────
-      #    (Secrets are never logged or exposed in the Actions UI)
       - name: Write config.json from secrets
         run: |
-          cat > config.json << EOF
+          cat > config.json << ENDJSON
           {
-            "gmail_address":      "${{ secrets.GMAIL_ADDRESS }}",
-            "gmail_app_password": "${{ secrets.GMAIL_APP_PASSWORD }}",
-            "recipient_email":    "${{ secrets.RECIPIENT_EMAIL }}",
-            "min_nights": 5,
-            "max_nights": 7,
-            "max_price_cad": 1200,
-            "monitor_months_ahead": 3,
-            "headless": true,
-            "request_timeout_ms": 30000,
+            "gmail_address":        "${{ secrets.GMAIL_ADDRESS }}",
+            "gmail_app_password":   "${{ secrets.GMAIL_APP_PASSWORD }}",
+            "recipient_email":      "${{ secrets.RECIPIENT_EMAIL }}",
+            "min_nights":           5,
+            "max_nights":           7,
+            "max_price_cad":        ${{ vars.MAX_PRICE_CAD || 1200 }},
+            "monitor_months_ahead": ${{ vars.MONITOR_MONTHS || 3 }},
+            "headless":             true,
+            "request_timeout_ms":   30000,
             "notify_on_every_deal": false
           }
-          EOF
+          ENDJSON
 
-      # ── 6. Restore deal history cache (avoids duplicate emails) ───────────
       - name: Restore deals history cache
         uses: actions/cache@v4
         with:
@@ -62,17 +53,24 @@ jobs:
           restore-keys: |
             deals-history-
 
-      # ── 7. Run the monitor ─────────────────────────────────────────────────
       - name: Run price monitor
         run: python main.py
         env:
           PYTHONUNBUFFERED: "1"
 
-      # ── 8. Upload logs as artifact (viewable for 7 days) ──────────────────
+      - name: Commit dashboard status.json to repo
+        run: |
+          git config user.name  "Cancun Monitor Bot"
+          git config user.email "actions@github.com"
+          git add docs/status.json || true
+          git diff --staged --quiet || git commit -m "chore: update dashboard [skip ci]"
+          git push
+        continue-on-error: true   # don't fail the run if nothing changed
+
       - name: Upload run logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: monitor-logs-${{ github.run_number }}
           path: logs/
-          retention-days: 7
+          retention-days: 14
