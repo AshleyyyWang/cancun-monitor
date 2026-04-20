@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cancun Monitor Dashboard</title>
+<style>
+  :root {
+    --bg: #f8fafc; --surface: #fff; --border: #e2e8f0;
+    --text: #0f172a; --muted: #64748b; --faint: #94a3b8;
+    --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
+    --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a;
+    --red: #dc2626;   --red-bg: #fef2f2;   --red-border: #fecaca;
+    --blue: #2563eb;  --blue-bg: #eff6ff;  --blue-border: #bfdbfe;
+    --teal: #0f766e;
+    --radius: 10px; --radius-sm: 6px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font);
+         font-size: 15px; line-height: 1.6; }
+  a { color: var(--teal); }
+
+  .topbar { background: var(--teal); color: #fff; padding: 0 24px;
+             height: 52px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .topbar-sub   { font-size: 12px; opacity: .75; }
+  .refresh-btn  { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+                  color: #fff; font-size: 12px; padding: 5px 12px; border-radius: 20px;
+                  cursor: pointer; }
+  .refresh-btn:hover { background: rgba(255,255,255,.25); }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* stat cards */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px; margin-bottom: 24px; }
+  .stat { background: var(--surface); border: 1px solid var(--border);
+           border-radius: var(--radius); padding: 16px; }
+  .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase;
+                 letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .stat-val   { font-size: 26px; font-weight: 700; line-height: 1; color: var(--text); }
+  .stat-sub   { font-size: 12px; color: var(--faint); margin-top: 4px; }
+  .stat.green .stat-val { color: var(--green); }
+  .stat.amber .stat-val { color: var(--amber); }
+
+  /* status pill */
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+           font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .pill.ok     { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .pill.warn   { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+  .pill.error  { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-border); }
+  .pill.info   { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-border); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  /* cards */
+  .card { background: var(--surface); border: 1px solid var(--border);
+           border-radius: var(--radius); margin-bottom: 16px; }
+  .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border);
+                  display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted);
+                 text-transform: uppercase; letter-spacing: .05em; }
+  .card-body  { padding: 18px; }
+
+  /* config grid */
+  .cfg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .cfg-item { background: var(--bg); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .cfg-label { font-size: 11px; color: var(--faint); margin-bottom: 2px; }
+  .cfg-val   { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  /* deal cards */
+  .deal { background: var(--green-bg); border: 1px solid var(--green-border);
+           border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px; }
+  .deal:last-child { margin-bottom: 0; }
+  .deal-header { display: flex; justify-content: space-between; align-items: flex-start;
+                  margin-bottom: 8px; }
+  .deal-date  { font-size: 15px; font-weight: 700; color: var(--text); }
+  .deal-price { font-size: 20px; font-weight: 800; color: var(--green); }
+  .deal-meta  { font-size: 13px; color: var(--muted); }
+  .deal-link  { display: inline-block; margin-top: 8px; background: var(--teal); color: #fff;
+                 text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px;
+                 font-weight: 600; }
+  .deal-link:hover { background: #0d5f58; }
+
+  /* run history chart */
+  .run-grid { display: flex; gap: 3px; flex-wrap: wrap; align-items: flex-end; }
+  .run-bar  { width: 10px; border-radius: 2px 2px 0 0; cursor: default;
+               transition: opacity .15s; }
+  .run-bar:hover { opacity: .75; }
+  .run-bar.ok    { background: var(--green); }
+  .run-bar.deal  { background: var(--amber); }
+  .run-bar.err   { background: var(--red); }
+  .run-bar.none  { background: var(--border); height: 4px !important; }
+
+  /* last-run info row */
+  .info-row { display: flex; flex-wrap: wrap; gap: 20px; font-size: 13px; color: var(--muted); }
+  .info-row span b { color: var(--text); }
+
+  .empty { text-align: center; padding: 32px; color: var(--faint); font-size: 14px; }
+
+  /* settings editor */
+  .settings-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .settings-form { grid-template-columns: 1fr; } }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted);
+                  margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .field input  { width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+                   border-radius: var(--radius-sm); font-size: 14px; background: var(--bg);
+                   color: var(--text); }
+  .field input:focus { outline: 2px solid var(--teal); outline-offset: 1px; border-color: transparent; }
+  .save-btn { margin-top: 14px; background: var(--teal); color: #fff; border: none;
+               padding: 9px 20px; border-radius: var(--radius-sm); font-size: 14px;
+               font-weight: 600; cursor: pointer; }
+  .save-btn:hover { background: #0d5f58; }
+  .save-note { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--faint); }
+  .error-state { background: var(--red-bg); border: 1px solid var(--red-border);
+                  border-radius: var(--radius); padding: 20px; text-align: center;
+                  color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">🌴 Cancun Monitor</div>
+    <div class="topbar-sub">Crown Paradise Club · YYZ → CUN</div>
+  </div>
+  <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+</div>
+
+<div class="container">
+  <div id="root"><div class="loading">Loading dashboard data…</div></div>
+</div>
+
+<script>
+const STATUS_URL = 'status.json';
+
+function timeAgo(iso) {
+  if (!iso) return 'never';
+  const diff = (Date.now() - new Date(iso)) / 1000;
+  if (diff < 60)   return Math.round(diff) + 's ago';
+  if (diff < 3600) return Math.round(diff/60) + 'm ago';
+  if (diff < 86400) return Math.round(diff/3600) + 'h ago';
+  return Math.round(diff/86400) + 'd ago';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-CA', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+  });
+}
+
+function fmtDepDate(str) {
+  if (!str) return '—';
+  try {
+    const d = new Date(str + 'T12:00:00');
+    return d.toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  } catch { return str; }
+}
+
+function statusPill(lastRun, lastResult) {
+  if (!lastRun) return '<span class="pill info"><span class="dot"></span>Waiting for first run</span>';
+  const minsAgo = (Date.now() - new Date(lastRun)) / 60000;
+  if (lastResult?.error) return '<span class="pill error"><span class="dot"></span>Last run errored</span>';
+  if (minsAgo > 420) return '<span class="pill warn"><span class="dot"></span>No run in 7+ hours</span>';
+  return '<span class="pill ok"><span class="dot"></span>Running normally</span>';
+}
+
+function render(d) {
+  const cfg = d.config || {};
+  const stats = d.stats || {};
+  const result = d.last_run_result || {};
+  const deals = d.recent_deals || [];
+  const runs = d.run_log || [];
+  const maxBar = 28;
+
+  // ── Stat cards ──────────────────────────────────────────────────────────
+  const statCards = `
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Status</div>
+      <div style="margin-top:4px">${statusPill(stats.last_run, result)}</div>
+      <div class="stat-sub">${timeAgo(stats.last_run)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total runs</div>
+      <div class="stat-val">${stats.total_runs ?? 0}</div>
+      <div class="stat-sub">since setup</div>
+    </div>
+    <div class="stat ${stats.total_deals_found > 0 ? 'green' : ''}">
+      <div class="stat-label">Deals found</div>
+      <div class="stat-val">${stats.total_deals_found ?? 0}</div>
+      <div class="stat-sub">all time</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Price limit</div>
+      <div class="stat-val">$${cfg.max_price_cad ?? 1200}</div>
+      <div class="stat-sub">CAD/person incl. tax</div>
+    </div>
+  </div>`;
+
+  // ── Config ────────────────────────────────────────────────────────────────
+  const configCard = `
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Current settings</span>
+      <span style="font-size:12px;color:var(--faint)">change below ↓</span>
+    </div>
+    <div class="card-body">
+      <div class="cfg-grid">
+        <div class="cfg-item"><div class="cfg-label">Hotel</div><div class="cfg-val" style="font-size:12px">Crown Paradise Club</div></div>
+        <div class="cfg-item"><div class="cfg-label">Route</div><div class="cfg-val">${cfg.route ?? 'YYZ → CUN'}</div></div>
+        <div class="cfg-item"><div class="cfg-label">Duration</div><div class="cfg-val">${cfg.min_nights}–${cfg.max_nights} nights</div></div>
+        <div class="cfg-item"><div class="cfg-label">Price alert</div><div class="cfg-val">≤ $${cfg.max_price_cad} CAD</div></div>
+        <div class="cfg-item"><div class="cfg-label">Window</div><div class="cfg-val">${cfg.monitor_months} months</div></div>
+        <div class="cfg-item"><div class="cfg-label">Last run</div><div class="cfg-val" style="font-size:12px">${fmtDate(stats.last_run)}</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Last run info ─────────────────────────────────────────────────────────
+  const lastRunCard = `
+  <div class="card">
+    <div class="card-header"><span class="card-title">Last run</span></div>
+    <div class="card-body">
+      <div class="info-row">
+        <span>Time: <b>${fmtDate(stats.last_run)}</b></span>
+        <span>Duration: <b>${result.duration_s ?? '—'}s</b></span>
+        <span>Deals found: <b>${result.deals_found ?? 0}</b></span>
+        <span>Status: <b>${result.error ? '❌ Error' : '✅ OK'}</b></span>
+      </div>
+      ${result.error ? `<div style="margin-top:10px;padding:10px;background:var(--red-bg);border-radius:6px;font-size:12px;font-family:var(--mono);color:var(--red)">${result.error}</div>` : ''}
+    </div>
+  </div>`;
+
+  // ── Run history bars ──────────────────────────────────────────────────────
+  const recent = runs.slice(-60);
+  const bars = recent.map(r => {
+    const cls = r.error ? 'err' : r.deals_found > 0 ? 'deal' : 'ok';
+    const h = r.deals_found > 0 ? 20 : 12;
+    const tip = `${fmtDate(r.timestamp)} · ${r.deals_found} deal(s) · ${r.duration_s}s${r.error ? ' · ERROR' : ''}`;
+    return `<div class="run-bar ${cls}" style="height:${h}px" title="${tip}"></div>`;
+  }).join('');
+
+  const histCard = `
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Run history (last ${recent.length})</span>
+      <span style="font-size:11px;color:var(--faint)">
+        <span style="color:var(--green)">■</span> ok &nbsp;
+        <span style="color:var(--amber)">■</span> deal found &nbsp;
+        <span style="color:var(--red)">■</span> error
+      </span>
+    </div>
+    <div class="card-body">
+      ${recent.length === 0
+        ? '<div class="empty">No runs yet</div>'
+        : `<div class="run-grid">${bars}</div><div style="font-size:11px;color:var(--faint);margin-top:8px">Hover bars for details</div>`
+      }
+    </div>
+  </div>`;
+
+  // ── Deals ─────────────────────────────────────────────────────────────────
+  const dealRows = deals.length === 0
+    ? '<div class="empty">No deals found yet — you\'ll get an email the moment one appears.</div>'
+    : deals.map(d => {
+        const savings = (cfg.max_price_cad ?? 1200) - (d.price_per_person ?? 0);
+        return `
+        <div class="deal">
+          <div class="deal-header">
+            <div>
+              <div class="deal-date">${fmtDepDate(d.departure_date)}</div>
+              <div class="deal-meta">${d.nights} nights · ${(d.source||'').replace(/_/g,' ')}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="deal-price">$${Math.round(d.price_per_person ?? 0)}</div>
+              <div style="font-size:12px;color:var(--green)">save $${Math.round(savings)}</div>
+            </div>
+          </div>
+          <div class="deal-meta">Found: ${fmtDate(d.found_at)} · taxes &amp; fees included</div>
+          ${d.booking_url ? `<a class="deal-link" href="${d.booking_url}" target="_blank">Book on Redtag →</a>` : ''}
+        </div>`;
+      }).join('');
+
+  const dealsCard = `
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Deals found (all time)</span>
+      ${deals.length > 0 ? `<span class="pill ok"><span class="dot"></span>${deals.length} deal${deals.length>1?'s':''}</span>` : ''}
+    </div>
+    <div class="card-body">${dealRows}</div>
+  </div>`;
+
+  // ── Settings editor ───────────────────────────────────────────────────────
+  const settingsCard = `
+  <div class="card">
+    <div class="card-header"><span class="card-title">Change settings</span></div>
+    <div class="card-body">
+      <div class="settings-form">
+        <div class="field">
+          <label>Price limit (CAD/person)</label>
+          <input type="number" id="s-price" value="${cfg.max_price_cad ?? 1200}" min="800" max="3000" step="50">
+        </div>
+        <div class="field">
+          <label>Months ahead to monitor</label>
+          <input type="number" id="s-months" value="${cfg.monitor_months ?? 3}" min="1" max="12" step="1">
+        </div>
+        <div class="field">
+          <label>Min nights</label>
+          <input type="number" id="s-min" value="${cfg.min_nights ?? 5}" min="3" max="14">
+        </div>
+        <div class="field">
+          <label>Max nights</label>
+          <input type="number" id="s-max" value="${cfg.max_nights ?? 7}" min="3" max="21">
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveSettings()">Generate updated config.json ↓</button>
+      <p class="save-note" id="save-out"></p>
+    </div>
+  </div>`;
+
+  document.getElementById('root').innerHTML =
+    statCards + configCard + lastRunCard + histCard + dealsCard + settingsCard;
+}
+
+function saveSettings() {
+  const price  = parseInt(document.getElementById('s-price').value);
+  const months = parseInt(document.getElementById('s-months').value);
+  const minN   = parseInt(document.getElementById('s-min').value);
+  const maxN   = parseInt(document.getElementById('s-max').value);
+
+  const cfg = {
+    "gmail_address":      "your@gmail.com",
+    "gmail_app_password": "xxxx xxxx xxxx xxxx",
+    "recipient_email":    "your@gmail.com",
+    "min_nights":  minN,
+    "max_nights":  maxN,
+    "max_price_cad": price,
+    "monitor_months_ahead": months,
+    "headless": true,
+    "request_timeout_ms": 30000,
+    "notify_on_every_deal": false
+  };
+
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'config.json';
+  a.click();
+
+  document.getElementById('save-out').innerHTML =
+    '✅ <b>config.json downloaded.</b> Upload it to your GitHub repo to replace the old one. ' +
+    'The next run will use your new settings automatically. ' +
+    '(Keep your real gmail_address and gmail_app_password — the download uses placeholders.)';
+}
+
+async function load() {
+  try {
+    const r = await fetch(STATUS_URL + '?t=' + Date.now());
+    if (!r.ok) throw new Error('status.json not found (HTTP ' + r.status + ')');
+    const d = await r.json();
+    render(d);
+  } catch(e) {
+    document.getElementById('root').innerHTML = `
+      <div class="error-state">
+        <div style="font-size:18px;margin-bottom:8px">📭 No data yet</div>
+        <div style="font-size:14px">${e.message}</div>
+        <div style="font-size:13px;margin-top:10px;color:var(--muted)">
+          The dashboard will show data after the first GitHub Actions run completes.<br>
+          Make sure GitHub Pages is enabled in your repo Settings → Pages.
+        </div>
+      </div>`;
+  }
+}
+
+load();
+setInterval(load, 5 * 60 * 1000);  // auto-refresh every 5 min
+</script>
+</body>
+</html>
