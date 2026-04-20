@@ -1,0 +1,16 @@
+{
+  "gmail_address": "your@gmail.com",
+  "gmail_app_password": "xxxx xxxx xxxx xxxx",
+  "recipient_email": "your@gmail.com",
+  "departure_city": "YYZ",
+  "destination": "CUN",
+  "hotel_name": "Crown Paradise Club Cancun",
+  "min_nights": 5,
+  "max_nights": 7,
+  "max_price_cad": 1200,
+  "monitor_months_ahead": 3,
+  "check_interval_hours": 6,
+  "headless": true,
+  "request_timeout_ms": 30000,
+  "notify_on_every_deal": false
+}
