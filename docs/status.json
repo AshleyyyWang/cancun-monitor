@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-18T14:55:07.286861",
+  "generated_at": "2026-05-18T19:25:48.863113",
   "config": {
     "hotel": "Crown Paradise Club Cancun",
     "route": "YYZ \u2192 CUN",
@@ -9,24 +9,18 @@
     "monitor_months": 6
   },
   "stats": {
-    "total_runs": 113,
+    "total_runs": 114,
     "total_deals_found": 0,
-    "last_run": "2026-05-18T14:54:48.794004"
+    "last_run": "2026-05-18T19:25:29.524758"
   },
   "last_run_result": {
     "deals_found": 0,
     "new_deals": 0,
     "error": null,
-    "duration_s": 18.5
+    "duration_s": 19.3
   },
   "recent_deals": [],
   "run_log": [
-    {
-      "timestamp": "2026-04-26T07:17:28.914540",
-      "deals_found": 0,
-      "duration_s": 19.9,
-      "error": null
-    },
     {
       "timestamp": "2026-04-26T12:43:34.930602",
       "deals_found": 0,
@@ -559,6 +553,12 @@
       "timestamp": "2026-05-18T14:54:48.794004",
       "deals_found": 0,
       "duration_s": 18.5,
+      "error": null
+    },
+    {
+      "timestamp": "2026-05-18T19:25:29.524758",
+      "deals_found": 0,
+      "duration_s": 19.3,
       "error": null
     }
   ]
